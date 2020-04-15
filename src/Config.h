@@ -1,8 +1,11 @@
 #include <FS.h>
 #include <Arduino.h>
 
+#define MAX_SCHEDULES 5
+
 struct Config {
     String name;
+    int schedule[MAX_SCHEDULES];
 };
 
 // Loads the configuration from a file
@@ -21,6 +24,13 @@ void loadConfiguration(const char *filename, Config &config) {
 
   // Copy values from the JsonDocument to the Config
   config.name = doc["name"] | "unassigned";
+  // config.schedule = doc["schedule"] | [];
+  JsonArray array = doc["schedule"];
+  int index = 0;
+  for(JsonVariant v : array) {
+    config.schedule[index] = v.as<int>();
+    index++;
+  }
 
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
@@ -46,6 +56,10 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Set the values in the document
   doc["name"] = config.name;
 
+  JsonArray array = doc.createNestedArray("schedule");
+  for (int i = 0; i < MAX_SCHEDULES; i++ ) {
+    array.add(config.schedule[i]);
+  }
 
   // Serialize JSON to file
   if (serializeJson(doc, file) == 0) {

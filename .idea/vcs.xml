@@ -2,6 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/ArduinoJson" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/ESPAsyncTCP" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/ESPAsyncWebServer" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/NTPClient" vcs="Git" />
   </component>
 </project>

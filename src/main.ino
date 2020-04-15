@@ -51,13 +51,14 @@ void setup()
   Serial.begin(115200);
   Serial.println("");
   Serial.println("Mounting FS...");
-  if (SPIFFS.begin())
-  {
+  if (SPIFFS.begin()) {
     // Should load default config if run for the first time
     Serial.println(F("Loading configuration..."));
     loadConfiguration(filename, config);
     Serial.print("Config: ");
     Serial.println(config.name);
+    for(int i = 0; i < MAX_SCHEDULES; i++) Serial.print(config.schedule[i]);Serial.print(" ");
+    Serial.println("");
     // Create configuration file
     Serial.println(F("Saving configuration..."));
     saveConfiguration(filename, config);
@@ -80,6 +81,7 @@ void setup()
   server.on("/name", HTTP_POST, [](AsyncWebServerRequest *request) {
     const char *PARAM_NAME = "name";
     Serial.print("POST /name?name=");
+
     if (request->hasParam(PARAM_NAME)) {
       String name = request->getParam(PARAM_NAME)->value();
       Serial.println(name);
@@ -98,6 +100,11 @@ void setup()
     Serial.println("GET /schedule");
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     StaticJsonDocument<256> doc;
+    doc["name"] = config.name;
+     JsonArray array = doc.createNestedArray("schedule");
+    for (int i = 0; i < MAX_SCHEDULES; i++ ) {
+      array.add(config.schedule[i]);
+    }
     serializeJson(doc, *response);
     request->send(response);
   });

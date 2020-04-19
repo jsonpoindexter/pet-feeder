@@ -1,3 +1,5 @@
+// https://arduinojson.org/v6/example/config/
+
 #include <FS.h>
 #include <Arduino.h>
 
@@ -5,11 +7,12 @@
 
 struct Config {
     String name;
-    int schedule[MAX_SCHEDULES];
+    uint32 schedule[MAX_SCHEDULES];
 };
 
 // Loads the configuration from a file
 void loadConfiguration(const char *filename, Config &config) {
+   Serial.println(F("Loading configuration..."));
   // Open file for reading
   File file = SPIFFS.open(filename, "r");
 
@@ -28,16 +31,18 @@ void loadConfiguration(const char *filename, Config &config) {
   JsonArray array = doc["schedule"];
   int index = 0;
   for(JsonVariant v : array) {
-    config.schedule[index] = v.as<int>();
+    config.schedule[index] = v.as<uint32>();
     index++;
   }
 
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
+  serializeJsonPretty(doc, Serial);
 }
 
 // Saves the configuration to a file
 void saveConfiguration(const char *filename, const Config &config) {
+  Serial.println(F("Saving configuration..."));
   // Delete existing file, otherwise the configuration is appended to the file
   SPIFFS.remove(filename);
 
@@ -55,9 +60,8 @@ void saveConfiguration(const char *filename, const Config &config) {
 
   // Set the values in the document
   doc["name"] = config.name;
-
   JsonArray array = doc.createNestedArray("schedule");
-  for (int i = 0; i < MAX_SCHEDULES; i++ ) {
+  for (size_t i = 0; i < sizeof(config.schedule) / sizeof(uint32); i++ ) {
     array.add(config.schedule[i]);
   }
 
@@ -68,4 +72,5 @@ void saveConfiguration(const char *filename, const Config &config) {
 
   // Close the file
   file.close();
+  serializeJsonPretty(doc, Serial);
 }

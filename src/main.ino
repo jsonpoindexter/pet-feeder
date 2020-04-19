@@ -53,14 +53,8 @@ void setup()
   Serial.println("Mounting FS...");
   if (SPIFFS.begin()) {
     // Should load default config if run for the first time
-    Serial.println(F("Loading configuration..."));
     loadConfiguration(filename, config);
-    Serial.print("Config: ");
-    Serial.println(config.name);
-    for(int i = 0; i < MAX_SCHEDULES; i++) Serial.print(config.schedule[i]);Serial.print(" ");
-    Serial.println("");
     // Create configuration file
-    Serial.println(F("Saving configuration..."));
     saveConfiguration(filename, config);
   }
 
@@ -97,39 +91,69 @@ void setup()
   });
   // GET current scheduled
   server.on("/schedule", HTTP_GET, [](AsyncWebServerRequest *request) {
+    // LOG
     Serial.println("GET /schedule");
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    
+    // Build json config for saving to file system
     StaticJsonDocument<256> doc;
     doc["name"] = config.name;
-     JsonArray array = doc.createNestedArray("schedule");
-    for (int i = 0; i < MAX_SCHEDULES; i++ ) {
-      array.add(config.schedule[i]);
+    JsonArray array = doc.createNestedArray("schedule");
+    for (size_t i = 0; i < sizeof(config.schedule) / sizeof(uint32); i++ ) {
+      if(config.schedule[i]) array.add(config.schedule[i]);
     }
+
+    // Response
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
     serializeJson(doc, *response);
     request->send(response);
   });
   // POST schedule
-  AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/schedule", [](AsyncWebServerRequest *request, JsonVariant &json) {
-    JsonObject jsonObj = json.as<JsonObject>();
+  AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/schedule", [](AsyncWebServerRequest *request, JsonVariant &jsonReq) {
+    JsonArray array = jsonReq.as<JsonArray>();
+    
     // LOG
     String body;
-    serializeJson(jsonObj, body);
+    serializeJson(array, body);
     Serial.print("POST /schedule");
     Serial.print(" body: ");
     Serial.println(body);
+
+    // Build json config for saving to file system
     StaticJsonDocument<256> doc;
-    doc["schedule"] = jsonObj;
+    doc["schedule"] = array;
+    // Empty out current schedule
+    for (size_t i = 0; i < sizeof(config.schedule) / sizeof(uint32); i++ ) {
+       config.schedule[i] = 0;
+    }
+    int index = 0;
+    for(JsonVariant v : array) {
+      config.schedule[index] = v.as<uint32>();
+      index++;
+    }
+    saveConfiguration(filename, config);
+
+    // Rebuild schedule json array from config for response
+    StaticJsonDocument<256> doc1;
+    JsonArray array1 = doc1.createNestedArray("schedule");
+    for (size_t i = 0; i < sizeof(config.schedule) / sizeof(uint32); i++ ) {
+       if(config.schedule[i]) array1.add(config.schedule[i]);
+    }
+
+    // Response
     AsyncResponseStream *response = request->beginResponseStream("application/json");
-    serializeJson(doc, *response);
-
-    String currentSchedule;
-    serializeJson(doc, currentSchedule);
-
+    serializeJson(doc1, *response);
     request->send(response);
   });
-
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
   server.addHandler(handler);
-  server.onNotFound(notFound);
+  server.onNotFound([](AsyncWebServerRequest *request) {
+    if (request->method() == HTTP_OPTIONS) {
+      request->send(200);
+    } else {
+      request->send(404);
+    }
+  });
   server.begin();
 
   // TIME INIT

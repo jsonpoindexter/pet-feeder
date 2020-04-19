@@ -75,18 +75,15 @@ void setup()
   // POST name
   // Set name
   server.on("/name", HTTP_POST, [](AsyncWebServerRequest *request) {
+    logger(request);
     const char *PARAM_NAME = "name";
-    Serial.print("POST /name?name=");
 
     if (request->hasParam(PARAM_NAME)) {
       String name = request->getParam(PARAM_NAME)->value();
-      Serial.println(name);
       config.name = name;
-      Serial.println(F("Saving configuration..."));
       saveConfiguration(filename, config);
       request->send(200);
     } else {
-      Serial.println("");
       request->send(400, "text/plain", "name: String parameter required");
     }
     
@@ -94,9 +91,7 @@ void setup()
   // GET current scheduled
   // Return current schedule and name
   server.on("/schedule", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // LOG
-    Serial.println("GET /schedule");
-    
+    logger(request);
     // Build json config for saving to file system
     StaticJsonDocument<256> doc;
     doc["name"] = config.name;
@@ -110,17 +105,12 @@ void setup()
     serializeJson(doc, *response);
     request->send(response);
   });
+
   // POST schedule
   // Set schedule for feederr
   AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/schedule", [](AsyncWebServerRequest *request, JsonVariant &jsonReq) {
+    logger(request);
     JsonArray array = jsonReq.as<JsonArray>();
-    
-    // LOG
-    String body;
-    serializeJson(array, body);
-    Serial.print("POST /schedule");
-    Serial.print(" body: ");
-    Serial.println(body);
 
     // Build json config for saving to file system
     StaticJsonDocument<256> doc;
@@ -151,8 +141,7 @@ void setup()
   // POST feed
   // Activates feeding funcionality
   server.on("/feed", HTTP_POST, [](AsyncWebServerRequest *request) {
-    // LOG
-    Serial.println("POST /feed");
+    logger(request);
     feed();
     request->send(200);
   });
@@ -204,8 +193,15 @@ void checkFeedSchedule() {
 void feed() {
   myservo.attach(SERVO_PIN); // Attach/Detach motor each time bc otherwise its noisy while idle
   myservo.write(OPEN_POS);
-  delay(OPEN_MS);
+  // delay(OPEN_MS);
   myservo.write(CLOSE_POS);
-  delay(DETACH_DELAY); // Let motor reach pos before detaching
+  // delay(DETACH_DELAY); // Let motor reach pos before detaching
   myservo.detach();
+}
+
+void logger(AsyncWebServerRequest *request) {
+  Serial.print(request -> methodToString());Serial.print(" ");
+  Serial.print(request -> url());Serial.print(" - ");
+  Serial.print(request -> host());Serial.print(" - ");
+  Serial.println(request -> requestedConnTypeToString());
 }

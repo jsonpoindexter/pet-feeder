@@ -33,17 +33,18 @@ void notFound(AsyncWebServerRequest *request)
 
 // TIME SETUP
 #include <NTPClient.h>
-const long utcOffsetInSeconds = -8 * 3600; // -8 for PST
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
-int previousFeedDay = -1; // Last day the the beast was fed. Range is 0-6 (Sun, Mon, Tue... )
+NTPClient timeClient(ntpUDP, "pool.ntp.org");
 
 // SPIDFF SETUP
 #include <FS.h> // Include the SPIFFS library
 #include "Config.h"
 const char *filename = "/config.json";
-
 Config config;
+
+// FEED SCHEDULE SETUP
+unsigned long previousMillis = 0;
+const long interval = 5000;           // interval at which to check feed times (ms)
 
 void setup()
 {
@@ -72,6 +73,7 @@ void setup()
 
   // WEBSERVER INIT
   // POST name
+  // Set name
   server.on("/name", HTTP_POST, [](AsyncWebServerRequest *request) {
     const char *PARAM_NAME = "name";
     Serial.print("POST /name?name=");
@@ -90,6 +92,7 @@ void setup()
     
   });
   // GET current scheduled
+  // Return current schedule and name
   server.on("/schedule", HTTP_GET, [](AsyncWebServerRequest *request) {
     // LOG
     Serial.println("GET /schedule");
@@ -108,6 +111,7 @@ void setup()
     request->send(response);
   });
   // POST schedule
+  // Set schedule for feederr
   AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/schedule", [](AsyncWebServerRequest *request, JsonVariant &jsonReq) {
     JsonArray array = jsonReq.as<JsonArray>();
     
@@ -144,6 +148,14 @@ void setup()
     serializeJson(doc1, *response);
     request->send(response);
   });
+  // POST feed
+  // Activates feeding funcionality
+  server.on("/feed", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // LOG
+    Serial.println("POST /feed");
+    feed();
+    request->send(200);
+  });
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
   server.addHandler(handler);
@@ -169,31 +181,27 @@ void setup()
   delay(1000);
 }
 
-void loop()
-{
-  // Serial.print(previousFeedDay);
-  // Serial.print(" - ");
-  // Serial.print(timeClient.getDay());
-  // Serial.print(":");
-  // Serial.print(timeClient.getHours());
-  // Serial.print(":");
-  // Serial.println(timeClient.getMinutes());
-  if (isFeedingTime(timeClient.getHours() + 1, timeClient.getDay()))
-  { // +1 for daylight savings?
-    feed();
-    previousFeedDay = timeClient.getDay();
+void loop() {
+  checkFeedSchedule();
+}
+
+void checkFeedSchedule() {
+ unsigned long currentMillis = millis(); 
+ if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    // Check all current feed times and compare to current
+    for (size_t i = 0; i < sizeof(config.schedule) / sizeof(uint32); i++ ) {
+      if( config.schedule[i] && timeClient.getEpochTime() >= config.schedule[i]) {
+        feed();
+        // Increase fzeed time by 24hr
+        config.schedule[i] = (config.schedule[i] + (24 * 60 * 60));
+        // saveConfiguration(filename, config);
+      }
+    }
   }
-  delay(60 * 1000);
 }
 
-bool isFeedingTime(int currentHour, int currentDay)
-{
-  return currentHour == FEED_HR && previousFeedDay != currentDay;
-}
-
-void feed()
-{
-  Serial.println("FEED");
+void feed() {
   myservo.attach(SERVO_PIN); // Attach/Detach motor each time bc otherwise its noisy while idle
   myservo.write(OPEN_POS);
   delay(OPEN_MS);

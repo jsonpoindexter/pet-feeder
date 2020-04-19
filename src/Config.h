@@ -12,7 +12,7 @@ struct Config {
 
 // Loads the configuration from a file
 void loadConfiguration(const char *filename, Config &config) {
-   Serial.println(F("Loading configuration..."));
+  Serial.println(F("Loading configuration..."));
   // Open file for reading
   File file = SPIFFS.open(filename, "r");
 
@@ -38,6 +38,7 @@ void loadConfiguration(const char *filename, Config &config) {
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
   serializeJsonPretty(doc, Serial);
+  Serial.println("");
 }
 
 // Saves the configuration to a file
@@ -73,4 +74,5 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Close the file
   file.close();
   serializeJsonPretty(doc, Serial);
+  Serial.println("");
 }

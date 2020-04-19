@@ -43,11 +43,11 @@ const char *filename = "/config.json";
 Config config;
 
 // FEED SCHEDULE SETUP
+bool feedStatus = false;
 unsigned long previousMillis = 0;
 const long interval = 5000;           // interval at which to check feed times (ms)
 
-void setup()
-{
+void setup() {
   delay(1000);
   Serial.begin(115200);
   Serial.println("");
@@ -142,7 +142,7 @@ void setup()
   // Activates feeding funcionality
   server.on("/feed", HTTP_POST, [](AsyncWebServerRequest *request) {
     logger(request);
-    feed();
+    feedStatus = true;
     request->send(200);
   });
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
@@ -172,6 +172,9 @@ void setup()
 
 void loop() {
   checkFeedSchedule();
+  if(feedStatus) {
+    feed();
+  }
 }
 
 void checkFeedSchedule() {
@@ -184,7 +187,7 @@ void checkFeedSchedule() {
         feed();
         // Increase fzeed time by 24hr
         config.schedule[i] = (config.schedule[i] + (24 * 60 * 60));
-        // saveConfiguration(filename, config);
+        saveConfiguration(filename, config);
       }
     }
   }
@@ -193,10 +196,11 @@ void checkFeedSchedule() {
 void feed() {
   myservo.attach(SERVO_PIN); // Attach/Detach motor each time bc otherwise its noisy while idle
   myservo.write(OPEN_POS);
-  // delay(OPEN_MS);
+  delay(OPEN_MS);
   myservo.write(CLOSE_POS);
-  // delay(DETACH_DELAY); // Let motor reach pos before detaching
+  delay(DETACH_DELAY); // Let motor reach pos before detaching
   myservo.detach();
+  feedStatus = false;
 }
 
 void logger(AsyncWebServerRequest *request) {

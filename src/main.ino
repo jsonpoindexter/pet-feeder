@@ -1,3 +1,4 @@
+#define ASYNC_TCP_SSL_ENABLED 1
 #include <Arduino.h>
 #include ".\conf.h" // WIFI SSID/Password
 
@@ -21,15 +22,17 @@ const char *ssid = STASSID;
 const char *password = STAPSK;
 
 // WEBSERVER SETUP
+
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
-AsyncWebServer server(80);
+AsyncWebServer server(443);
 void notFound(AsyncWebServerRequest *request)
 {
   request->send(404, "text/plain", "Not found");
 }
+
 
 // TIME SETUP
 #include <NTPClient.h>
@@ -155,7 +158,24 @@ void setup() {
       request->send(404);
     }
   });
-  server.begin();
+  server.onSslFileRequest([](void * arg, const char *filename, uint8_t **buf) -> int {
+    Serial.printf("SSL File: %s\n", filename);
+    File file = SPIFFS.open(filename, "r");
+    if(file){
+      size_t size = file.size();
+      uint8_t * nbuf = (uint8_t*)malloc(size);
+      if(nbuf){
+        size = file.read(nbuf, size);
+        file.close();
+        *buf = nbuf;
+        return size;
+      }
+      file.close();
+    }
+    *buf = 0;
+    return 0;
+  }, NULL);
+  server.beginSecure("/server.cer", "/server.key", NULL);
 
   // TIME INIT
   timeClient.begin();

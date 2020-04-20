@@ -39,3 +39,6 @@ platformio.exe run --target uploadfs
 
 ![Wemos D1 Mini Pinout](https://www.projetsdiy.fr/wp-content/uploads/2016/05/esp8266-wemos-d1-mini-gpio-pins.jpg)
 
+
+## Extra
+* [Web Server SSL vs no SSL Response Times Spreadsheet](https://docs.google.com/spreadsheets/d/1TEmO_52ojlhTbK6Bpy6znVFXN7jVqgR1DMHDo9EdO_g/edit?usp=sharing)
